@@ -116,7 +116,24 @@ class BaseModel(nn.Module):
                 return "{:.1f}K".format(tot / 1e3)
         else:
             return tot
+    def print_trainable_parameters(self):
+        """
+        打印模型中可训练参数的数量。
+        """
+        trainable_params = 0
+        all_param = 0
+        for _, param in self.named_parameters():
+            num_params = param.numel()
+            # if using DS Zero 3 and the weights are initialized empty
+            if num_params == 0 and hasattr(param, "ds_numel"):
+                num_params = param.ds_numel
 
+            all_param += num_params
+            if param.requires_grad:
+                trainable_params += num_params
+        print(
+            f"可训练参数: {trainable_params} || 总的参数量: {all_param} || trainable%: {100 * trainable_params / all_param}"
+        )
 
 class BaseEncoder(nn.Module):
     """

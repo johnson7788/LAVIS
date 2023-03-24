@@ -78,7 +78,7 @@ class Blip2OPT(Blip2Base):
         self.opt_model = OPTForCausalLM.from_pretrained(
             opt_model, torch_dtype=torch.float16
         )
-        for name, param in self.opt_model.named_parameters():
+        for name, param in self.opt_model.named_parameters():  #默认冻结了语言模型
             param.requires_grad = False
         self.eos_token_id = self.opt_tokenizer(
             "\n", add_special_tokens=False
