@@ -36,4 +36,6 @@ def get_lora_model(model, config):
     )
     lora_model = LoraModel(lora_config, model)
     model.print_trainable_parameters() # 打印模型的参数
+    print("模型结构是：")
+    print(lora_model)
     return lora_model
