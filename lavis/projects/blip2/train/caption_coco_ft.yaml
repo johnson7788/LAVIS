@@ -8,7 +8,7 @@ model:
   model_type: caption_coco_opt2.7b
   load_finetuned: True   #加载预训练模型还是加载微调模型
   use_grad_checkpoint: True
-  freeze_vit: True   #是否冻结vit视觉模型，默认语言模型opt2.7b是冻结的
+  freeze_vit: True   #是否冻结vit视觉模型，默认语言模型opt2.7b是冻结的,opt2.7b支持中文
   vit_precision: bfloat16
 #  vit_precision: fp16 # 会报错
 
