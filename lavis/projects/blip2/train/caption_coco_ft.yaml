@@ -10,6 +10,11 @@ model:
   use_grad_checkpoint: True
   freeze_vit: True   #是否冻结vit视觉模型，默认语言模型opt2.7b是冻结的,opt2.7b支持中文
   vit_precision: bfloat16
+  enable_lora: True
+  lora_r: 8
+  lora_alpha: 16
+  lora_dropout: 0.05
+  lora_target_modules: ["self.query","self.value"]  #只对q-former进行微调
 #  vit_precision: fp16 # 会报错
 
 datasets:
