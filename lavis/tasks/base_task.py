@@ -180,7 +180,7 @@ class BaseTask:
 
         # if iter-based runner, schedule lr based on inner epoch.
         logging.info(
-            "Start training epoch {}, {} iters per inner epoch.".format(
+            "开始训练第 {} 个epoch, 每个epoch将会迭代 {} 次。".format(
                 epoch, iters_per_epoch
             )
         )
