@@ -29,9 +29,9 @@ def all_data_file():
     mini_test_file = os.path.join(path, "coco_karpathy_mini_test.json")
     val_file = os.path.join(path, "coco_karpathy_val.json")
     mini_val_file = os.path.join(path, "coco_karpathy_mini_val.json")
-    cut_off_data(train_file, 200, mini_train_file)
+    cut_off_data(train_file, 600, mini_train_file)
     cut_off_data(test_file, 100, mini_test_file)
-    cut_off_data(val_file, 100, mini_val_file)
+    cut_off_data(val_file, 300, mini_val_file)
 
 if __name__ == '__main__':
     all_data_file()

@@ -215,6 +215,7 @@ class Blip2OPT(Blip2Base):
                 query_embeds = inputs_opt.repeat_interleave(num_captions, dim=0)
                 num_beams = 1
             else:
+                # query_embeds = inputs_opt # 和trasformers==4.27.1的transformers/generation/utils.py的679到683冲突
                 query_embeds = inputs_opt.repeat_interleave(num_beams, dim=0)
 
             outputs = self.opt_model.generate(

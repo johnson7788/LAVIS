@@ -98,7 +98,7 @@ class RunnerIter(RunnerBase):
             # evaluation phase
             if len(self.valid_splits) > 0:
                 for split_name in self.valid_splits:
-                    logging.info("Evaluating on {}.".format(split_name))
+                    logging.info("评估数据集 {}.".format(split_name))
 
                     val_log = self.eval_epoch(
                         split_name=split_name, cur_epoch=self._progress(end_iters)
