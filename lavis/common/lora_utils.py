@@ -4,11 +4,16 @@
 # @File  : lora_utils.py
 # @Author:  johnson
 # @Desc  : Lora的配置，用于微调模型
+import os
+import json
+import torch
 from peft import (
     LoraConfig,         #LoraConfig是Lora的配置
     LoraModel,     # get_peft_model是获取peft模型
     get_peft_model_state_dict,  #get_peft_model_state_dict是获取peft模型的状态字典
 )
+WEIGHTS_NAME = "adapter_model.bin"
+CONFIG_NAME = "adapter_config.json"
 
 def get_lora_model(model, config):
     """
@@ -39,3 +44,20 @@ def get_lora_model(model, config):
     print("模型结构是：")
     print(lora_model)
     return lora_model
+
+def save_lora_model(save_directory, model, config, state_dict=None):
+    """
+    保存Lora模型, runner_base.py中的_save_checkpoint已经能保存模型了，这里不需要了
+    """
+    if os.path.isfile(save_directory):
+        raise ValueError(f"Provided path ({save_directory}) should be a directory, not a file")
+    os.makedirs(save_directory, exist_ok=True)
+
+    # 只保存可训练的权重
+    output_state_dict = get_peft_model_state_dict(model, state_dict)
+    torch.save(output_state_dict, os.path.join(save_directory, WEIGHTS_NAME))
+    # 保存配置
+    output_path = os.path.join(save_directory, CONFIG_NAME)
+    # save it
+    with open(output_path, "w") as writer:
+        writer.write(json.dumps(config, indent=2, sort_keys=True))

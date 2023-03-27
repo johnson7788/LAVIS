@@ -26,6 +26,7 @@ class COCOCapBuilder(BaseDatasetBuilder):
 
     DATASET_CONFIG_DICT = {
         "default": "configs/datasets/coco/defaults_cap.yaml",
+        "mini": "configs/datasets/coco/mini_cap.yaml",
     }
 
 
