@@ -11,6 +11,7 @@ from lavis.datasets.datasets.coco_caption_datasets import (
     COCOCapEvalDataset,
     NoCapsEvalDataset,
 )
+from lavis.datasets.datasets.comestic_datasets import (ComesticDataset, ComesticEvalDataset)
 
 from lavis.common.registry import registry
 from lavis.datasets.datasets.video_caption_datasets import (
@@ -29,9 +30,19 @@ class COCOCapBuilder(BaseDatasetBuilder):
         "mini": "configs/datasets/coco/mini_cap.yaml",
     }
 
+@registry.register_builder("comestic_caption")
+class ComesticCapBuilder(BaseDatasetBuilder):
+    train_dataset_cls = ComesticDataset
+    eval_dataset_cls = ComesticEvalDataset
+
+    DATASET_CONFIG_DICT = {
+        "default": "configs/datasets/cosmetic/defaults_cos.yaml",
+        "mini": "configs/datasets/cosmetic/mini_cos.yaml",
+    }
+
 
 @registry.register_builder("nocaps")
-class COCOCapBuilder(BaseDatasetBuilder):
+class COCOCapBuilderNOCAPS(BaseDatasetBuilder):
     eval_dataset_cls = NoCapsEvalDataset
 
     DATASET_CONFIG_DICT = {

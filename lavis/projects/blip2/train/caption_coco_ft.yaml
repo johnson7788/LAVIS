@@ -43,7 +43,7 @@ run:
   max_epoch: 5
   batch_size_train: 16
   batch_size_eval: 8
-  num_workers: 4
+  num_workers: 0
   accum_grad_iters: 1
 
   max_len: 30

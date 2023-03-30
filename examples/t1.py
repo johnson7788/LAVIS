@@ -33,5 +33,18 @@ def all_data_file():
     cut_off_data(test_file, 100, mini_test_file)
     cut_off_data(val_file, 300, mini_val_file)
 
+def cosmetic_data_file():
+    path = "/home/wac/johnson/.cache/lavis/cosmetic/annotations"
+    train_file = os.path.join(path, "train.json")
+    mini_train_file = os.path.join(path, "mini_train.json")
+    test_file = os.path.join(path, "test.json")
+    mini_test_file = os.path.join(path, "mini_test.json")
+    val_file = os.path.join(path, "val.json")
+    mini_val_file = os.path.join(path, "mini_val.json")
+    cut_off_data(train_file, 600, mini_train_file)
+    cut_off_data(test_file, 100, mini_test_file)
+    cut_off_data(val_file, 300, mini_val_file)
+
 if __name__ == '__main__':
-    all_data_file()
+    # all_data_file()
+    cosmetic_data_file()

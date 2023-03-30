@@ -17,7 +17,7 @@ model:
   lora_target_modules: ["self.query","self.value"]  #只对q-former进行微调
 
 datasets:
-  coco_caption: # name of the dataset builder
+  comestic_caption: # name of the dataset builder
     vis_processor:
         train:
           name: "blip2_image_train"
