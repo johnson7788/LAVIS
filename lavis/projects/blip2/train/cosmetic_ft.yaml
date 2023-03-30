@@ -4,13 +4,17 @@
  # For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
 
 model:
-  arch: blip2_opt
+  arch: blip2_lora
   model_type: caption_coco_opt2.7b
   load_finetuned: True   #加载预训练模型还是加载微调模型
   use_grad_checkpoint: True
   freeze_vit: True   #是否冻结vit视觉模型，默认语言模型opt2.7b是冻结的,opt2.7b支持中文
-  vit_precision: bfloat16
-#  vit_precision: fp16 # 会报错
+  vit_precision: bfloat16  #fp16 # 会报错
+  enable_lora: True
+  lora_r: 8
+  lora_alpha: 16
+  lora_dropout: 0.05
+  lora_target_modules: ["self.query","self.value"]  #只对q-former进行微调
 
 datasets:
   coco_caption: # name of the dataset builder
@@ -27,6 +31,7 @@ datasets:
           prompt: "a photo of "
         eval:
           name: "blip_caption"
+    type: "mini"  #mini数据集， 或 default 默认数据集
     # build_info:
     #     images:
     #         storage: '/export/share/datasets/vision/coco/images/'
@@ -43,7 +48,7 @@ run:
   max_epoch: 5
   batch_size_train: 16
   batch_size_eval: 8
-  num_workers: 4
+  num_workers: 0
   accum_grad_iters: 1
 
   max_len: 30
