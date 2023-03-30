@@ -13,6 +13,7 @@ import torch.nn.functional as F
 from lavis.common.registry import registry
 from lavis.models.blip2_models.blip2 import Blip2Base, disabled_train
 from lavis.models.blip2_models.modeling_opt import OPTForCausalLM, OPTConfig
+from lavis.models.blip2_models.face_head import build_head
 from transformers import AutoTokenizer
 
 
@@ -67,6 +68,7 @@ class Blip2Lora(Blip2Base):
         self.Qformer, self.query_tokens = self.init_Qformer(
             num_query_token, self.visual_encoder.num_features
         )
+        self.head = build_head(embedding_size=512,classnum=70722,m=0.4,h=0.333,s=64.,t_alpha=1.0)
         self.Qformer.cls = None
         self.Qformer.bert.embeddings.word_embeddings = None
         self.Qformer.bert.embeddings.position_embeddings = None
