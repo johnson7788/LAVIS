@@ -54,7 +54,7 @@ class Blip2Lora(Blip2Base):
         class_num=70722,
     ):
         super().__init__()
-
+        embed_dim = 256
         self.tokenizer = self.init_tokenizer()
         # 初始化视觉编码器，例如eva_clip_g
         self.visual_encoder, self.ln_vision = self.init_vision_encoder(
@@ -77,14 +77,15 @@ class Blip2Lora(Blip2Base):
         for layer in self.Qformer.bert.encoder.layer:
             layer.output = None
             layer.intermediate = None
-
+        self.vision_proj = nn.Linear(self.Qformer.config.hidden_size, embed_dim)
+        self.text_proj = nn.Linear(self.Qformer.config.hidden_size, embed_dim)
         self.opt_tokenizer = AutoTokenizer.from_pretrained(opt_model, use_fast=False)
         self.opt_model = OPTForCausalLM.from_pretrained(
             opt_model, torch_dtype=torch.float16
         )
+        logging.info(f"冻结{opt_model}编码器")
         for name, param in self.opt_model.named_parameters():  #默认冻结了语言模型
             param.requires_grad = False
-            logging.info(f"冻结{opt_model}编码器")
         self.eos_token_id = self.opt_tokenizer(
             "\n", add_special_tokens=False
         ).input_ids[0]
@@ -115,7 +116,7 @@ class Blip2Lora(Blip2Base):
             encoder_attention_mask=image_atts,
             return_dict=True,
         ) #query_output dict, 使用Qformer模型对查询语句和图像特征进行编码, last_hidden_state: [batch_size, 32, 768]
-        # inputs_opt图像的特征
+        # inputs_opt图像的特征, image_features:[batch_size, 32, 256]
         image_features = F.normalize(
             self.vision_proj(query_output.last_hidden_state), dim=-1
         )
@@ -123,6 +124,7 @@ class Blip2Lora(Blip2Base):
         text = self.tokenizer(
             caption,
             truncation=True,
+            padding="longest",
             max_length=self.max_txt_len,
             return_tensors="pt",
         ).to(image.device)
