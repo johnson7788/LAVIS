@@ -199,7 +199,7 @@ class RunnerBase:
             logging.info(
                 "dataset_ratios not specified, datasets will be concatenated (map-style datasets) or chained (webdataset.DataPipeline)."
             )
-
+            # 对数据集进行重组
             datasets = reorg_datasets_by_split(self.datasets)
             self.datasets = concat_datasets(datasets)
 
@@ -231,23 +231,23 @@ class RunnerBase:
 
                 if num_records >= 0:
                     logging.info(
-                        "Loaded {} records for {} split from the dataset.".format(
-                            num_records, split_name
+                        "从 {} 数据集加载了 {} 条数据记录".format(
+                            split_name, num_records
                         )
                     )
 
             # create dataloaders
-            split_names = sorted(self.datasets.keys())
+            split_names = sorted(self.datasets.keys())  #['test', 'train', 'val']
 
             datasets = [self.datasets[split] for split in split_names]
-            is_trains = [split in self.train_splits for split in split_names]
+            is_trains = [split in self.train_splits for split in split_names]  #[False, True, False]
 
             batch_sizes = [
                 self.config.run_cfg.batch_size_train
                 if split == "train"
                 else self.config.run_cfg.batch_size_eval
                 for split in split_names
-            ]
+            ]  #[8, 16, 8]
 
             collate_fns = []
             for dataset in datasets:
@@ -433,7 +433,7 @@ class RunnerBase:
             model=self.model,
             data_loader=self.train_loader,
             optimizer=self.optimizer,
-            scaler=self.scaler,
+            scaler=self.scaler,  #float16自动缩放问题
             lr_scheduler=self.lr_scheduler,
             cuda_enabled=self.cuda_enabled,
             log_freq=self.log_freq,

@@ -94,7 +94,7 @@ def reorg_datasets_by_split(datasets):
     """
     # if len(datasets) == 1:
     #     return datasets[list(datasets.keys())[0]]
-    # else:
+    # else: # 重新组织数据集
     reorg_datasets = dict()
 
     # reorganize by split

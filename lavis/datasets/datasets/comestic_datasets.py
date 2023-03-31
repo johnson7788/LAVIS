@@ -46,11 +46,11 @@ class ComesticDataset(BaseDataset, __DisplMixin):
         # TODO this assumes image input, not general enough
         ann = self.annotation[index]
 
-        image_path = os.path.join(self.vis_root, ann["image"])
+        image_path = os.path.join(self.vis_root, ann["img"])
         image = Image.open(image_path).convert("RGB")
-
+        caption_text = ann["text_a"] + " " + ann["text_b"]
         image = self.vis_processor(image)
-        caption = self.text_processor(ann["caption"])
+        caption = self.text_processor(caption_text)
 
         return {
             "image": image,
