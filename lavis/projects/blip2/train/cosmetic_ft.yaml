@@ -6,7 +6,7 @@
 model:
   arch: blip2_lora
   model_type: pretrain_flant5xl
-  load_finetuned: True   #加载预训练模型还是加载微调模型
+  load_finetuned: False   #加载预训练模型还是加载微调模型，如果没有提供finetuned模型，那么就改成False，只加载pretrained模型
   use_grad_checkpoint: True
   freeze_vit: True   #是否冻结vit视觉模型，默认语言模型opt2.7b是冻结的,opt2.7b支持中文
   vit_precision: bfloat16  #fp16 # 会报错
