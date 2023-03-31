@@ -12,7 +12,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from lavis.common.registry import registry
 from lavis.models.blip2_models.blip2 import Blip2Base, disabled_train
-from lavis.models.blip2_models.modeling_opt import OPTForCausalLM, OPTConfig
+from transformers import T5TokenizerFast
+from lavis.models.blip2_models.modeling_t5 import T5Config, T5EncoderModel
 from lavis.models.blip2_models.face_head import build_head
 from transformers import AutoTokenizer
 
@@ -32,10 +33,10 @@ class Blip2Lora(Blip2Base):
     """
 
     PRETRAINED_MODEL_CONFIG_DICT = {
-        "pretrain_opt2.7b": "configs/models/blip2/blip2_pretrain_opt2.7b.yaml",
-        "pretrain_opt6.7b": "configs/models/blip2/blip2_pretrain_opt6.7b.yaml",
-        "caption_coco_opt2.7b": "configs/models/blip2/blip2_caption_opt2.7b.yaml",
-        "caption_coco_opt6.7b": "configs/models/blip2/blip2_caption_opt6.7b.yaml",
+        "pretrain_flant5xl": "configs/models/blip2/blip2_pretrain_flant5xl.yaml",
+        "pretrain_flant5xl_vitL": "configs/models/blip2/blip2_pretrain_flant5xl_vitL.yaml",
+        "pretrain_flant5xxl": "configs/models/blip2/blip2_pretrain_flant5xxl.yaml",
+        "caption_coco_flant5xl": "configs/models/blip2/blip2_caption_flant5xl.yaml",
     }
 
     def __init__(
@@ -47,11 +48,12 @@ class Blip2Lora(Blip2Base):
         vit_precision="fp16",
         freeze_vit=True,
         num_query_token=32,
-        opt_model="facebook/opt-2.7b",
+        t5_model="google/flan-t5-xl",
         prompt="",
         max_txt_len=32,
         loss_head_type="adaface",
         class_num=70722,
+        apply_lemmatizer=False,
     ):
         super().__init__()
         embed_dim = 256
@@ -79,25 +81,27 @@ class Blip2Lora(Blip2Base):
             layer.intermediate = None
         self.vision_proj = nn.Linear(self.Qformer.config.hidden_size, embed_dim)
         self.text_proj = nn.Linear(self.Qformer.config.hidden_size, embed_dim)
-        self.opt_tokenizer = AutoTokenizer.from_pretrained(opt_model, use_fast=False)
-        self.opt_model = OPTForCausalLM.from_pretrained(
-            opt_model, torch_dtype=torch.float16
-        )
-        logging.info(f"冻结{opt_model}编码器")
-        for name, param in self.opt_model.named_parameters():  #默认冻结了语言模型
-            param.requires_grad = False
-        self.eos_token_id = self.opt_tokenizer(
-            "\n", add_special_tokens=False
-        ).input_ids[0]
 
-        self.opt_proj = nn.Linear(
-            self.Qformer.config.hidden_size, self.opt_model.config.hidden_size
+        self.t5_tokenizer = T5TokenizerFast.from_pretrained(t5_model)
+        t5_config = T5Config.from_pretrained(t5_model)
+        t5_config.dense_act_fn = "gelu"
+        self.t5_model = T5EncoderModel.from_pretrained(
+            t5_model, config=t5_config
+        )
+
+        for name, param in self.t5_model.named_parameters():
+            param.requires_grad = False
+            param.data = param.data.bfloat16()
+
+        self.t5_proj = nn.Linear(
+            self.Qformer.config.hidden_size, self.t5_model.config.hidden_size
         )
 
         self.max_txt_len = max_txt_len
         self.prompt = prompt
-        prompt_tokens = self.opt_tokenizer(self.prompt, return_tensors="pt")
-        self.prompt_length = prompt_tokens.attention_mask.sum(1)
+
+        self._apply_lemmatizer = apply_lemmatizer
+        self._lemmatizer = None
 
     def forward(self, samples):
         image = samples["image"]   # [batch_size, 3, 364, 364] # 获取输入数据中的图像
@@ -121,7 +125,7 @@ class Blip2Lora(Blip2Base):
             self.vision_proj(query_output.last_hidden_state), dim=-1
         )
         # 文本特征处理-------------------------
-        text = self.tokenizer(
+        text = self.t5_tokenizer(
             caption,
             truncation=True,
             padding="longest",
@@ -259,7 +263,7 @@ class Blip2Lora(Blip2Base):
         vit_model = cfg.get("vit_model", "eva_clip_g")
         img_size = cfg.get("image_size")
         num_query_token = cfg.get("num_query_token")
-        opt_model = cfg.get("opt_model")
+        t5_model = cfg.get("t5_model")
 
         drop_path_rate = cfg.get("drop_path_rate", 0)
         use_grad_checkpoint = cfg.get("use_grad_checkpoint", False)
@@ -279,7 +283,7 @@ class Blip2Lora(Blip2Base):
             vit_precision=vit_precision,
             freeze_vit=freeze_vit,
             num_query_token=num_query_token,
-            opt_model=opt_model,
+            t5_model=t5_model,
             prompt=prompt,
             max_txt_len=max_txt_len,
             loss_head_type=loss_head_type,

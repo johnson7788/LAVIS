@@ -5,7 +5,7 @@
 
 model:
   arch: blip2_lora
-  model_type: caption_coco_opt2.7b
+  model_type: pretrain_flant5xl
   load_finetuned: True   #加载预训练模型还是加载微调模型
   use_grad_checkpoint: True
   freeze_vit: True   #是否冻结vit视觉模型，默认语言模型opt2.7b是冻结的,opt2.7b支持中文
@@ -39,7 +39,7 @@ datasets:
     #         storage: '/export/share/datasets/vision/coco/images/'
 
 run:
-  task: captioning
+  task: multimodal_classification
   # optimizer
   lr_sched: "linear_warmup_cosine_lr"
   init_lr: 1e-5

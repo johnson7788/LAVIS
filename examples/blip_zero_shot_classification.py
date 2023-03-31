@@ -16,7 +16,7 @@ from lavis.models import load_model_and_preprocess
 
 
 raw_image = Image.open("../docs/_static/merlion.png").convert("RGB")
-display(raw_image.resize((596, 437)))
+# display(raw_image.resize((596, 437)))
 
 
 # In[35]:

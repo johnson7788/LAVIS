@@ -23,7 +23,7 @@ class Config:
         registry.register("configuration", self)
 
         user_config = self._build_opt_list(self.args.options)
-
+        # 加载提供的项目的配置文件
         config = OmegaConf.load(self.args.cfg_path)
 
         runner_config = self.build_runner_config(config)
