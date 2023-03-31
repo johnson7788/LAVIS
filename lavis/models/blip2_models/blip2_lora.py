@@ -73,9 +73,6 @@ class Blip2Lora(Blip2Base):
             num_query_token, self.visual_encoder.num_features
         )
         self.head = build_head(head_type=loss_head_type,embedding_size=512,class_num=class_num,m=0.4,h=0.333,s=64.,t_alpha=1.0,)
-        self.Qformer.cls = None
-        self.Qformer.bert.embeddings.word_embeddings = None
-        self.Qformer.bert.embeddings.position_embeddings = None
         for layer in self.Qformer.bert.encoder.layer:
             layer.output = None
             layer.intermediate = None
@@ -106,7 +103,7 @@ class Blip2Lora(Blip2Base):
     def forward(self, samples):
         image = samples["image"]   # [batch_size, 3, 364, 364] # 获取输入数据中的图像
         caption = samples["text_input"]
-        # 图像特征处理-------------------------
+        # 使用VIT处理图像特征处理-------------------------
         with self.maybe_autocast():  #处理图像特征,自动混合精度
             image_embeds = self.ln_vision(self.visual_encoder(image)) # 图像特征经过视觉编码器和层归一化处理后得到的嵌入特征，[batch_size, 677, 1408]
         image_atts = torch.ones(image_embeds.size()[:-1], dtype=torch.long).to(
@@ -124,31 +121,33 @@ class Blip2Lora(Blip2Base):
         image_features = F.normalize(
             self.vision_proj(query_output.last_hidden_state), dim=-1
         )
-        # 文本特征处理-------------------------
-        text = self.t5_tokenizer(
-            caption,
-            truncation=True,
-            padding="longest",
-            max_length=self.max_txt_len,
-            return_tensors="pt",
-        ).to(image.device)
+        # 使用t5模型处理文本特征处理-------------------------
+        with self.maybe_autocast(dtype=torch.bfloat16):
+            text = self.t5_tokenizer(
+                caption,
+                truncation=True,
+                padding="longest",
+                max_length=self.max_txt_len,
+                return_tensors="pt",
+            ).to(image.device)
 
-        text_output = self.Qformer.bert(
-            text.input_ids,
-            attention_mask=text.attention_mask,
-            return_dict=True,
-        )
+            text_output = self.t5_model(
+                input_ids=text.input_ids,
+                attention_mask=text.attention_mask,
+                return_dict=True,
+            )
+
         text_embeds = text_output.last_hidden_state
         text_features = F.normalize(
             self.text_proj(text_output.last_hidden_state[:, 0, :]), dim=-1
         )
-        # 多模态特征处理-------------------------
+        # 多模态特征处理,使用Qformer处理-------------------------
         # 图像和文本的掩码
         attention_mask = torch.cat([image_atts, text.attention_mask], dim=1)
-        # 图像和文本的嵌入特征
+        # 图像和文本的嵌入特征，Qformer使用的"bert-base-uncased"初始化，如果直接传入input_ids，有中文，可能会有问题
         output = self.Qformer.bert(
             text.input_ids,
-            query_embeds=query_tokens,
+            query_embeds=query_tokens, #图像特征
             attention_mask=attention_mask,
             encoder_hidden_states=image_embeds,
             encoder_attention_mask=image_atts,
