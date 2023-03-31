@@ -368,7 +368,7 @@ class RunnerBase:
         for cur_epoch in range(self.start_epoch, self.max_epoch):
             # training phase
             if not self.evaluate_only:
-                logging.info("Start training")
+                logging.info("开始训练模型")
                 train_stats = self.train_epoch(cur_epoch)
                 self.log_stats(split_name="train", stats=train_stats)
 

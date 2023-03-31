@@ -50,11 +50,13 @@ class Blip2Lora(Blip2Base):
         opt_model="facebook/opt-2.7b",
         prompt="",
         max_txt_len=32,
+        loss_head_type="adaface",
+        class_num=70722,
     ):
         super().__init__()
 
         self.tokenizer = self.init_tokenizer()
-
+        # 初始化视觉编码器，例如eva_clip_g
         self.visual_encoder, self.ln_vision = self.init_vision_encoder(
             vit_model, img_size, drop_path_rate, use_grad_checkpoint, vit_precision
         )
@@ -63,12 +65,12 @@ class Blip2Lora(Blip2Base):
                 param.requires_grad = False
             self.visual_encoder = self.visual_encoder.eval()
             self.visual_encoder.train = disabled_train
-            logging.info("freeze vision encoder")
+            logging.info("冻结视觉编码器")
 
         self.Qformer, self.query_tokens = self.init_Qformer(
             num_query_token, self.visual_encoder.num_features
         )
-        self.head = build_head(head_type="adaface",embedding_size=512,class_num=70722,m=0.4,h=0.333,s=64.,t_alpha=1.0,)
+        self.head = build_head(head_type=loss_head_type,embedding_size=512,class_num=class_num,m=0.4,h=0.333,s=64.,t_alpha=1.0,)
         self.Qformer.cls = None
         self.Qformer.bert.embeddings.word_embeddings = None
         self.Qformer.bert.embeddings.position_embeddings = None
@@ -82,6 +84,7 @@ class Blip2Lora(Blip2Base):
         )
         for name, param in self.opt_model.named_parameters():  #默认冻结了语言模型
             param.requires_grad = False
+            logging.info(f"冻结{opt_model}编码器")
         self.eos_token_id = self.opt_tokenizer(
             "\n", add_special_tokens=False
         ).input_ids[0]
@@ -260,6 +263,8 @@ class Blip2Lora(Blip2Base):
         use_grad_checkpoint = cfg.get("use_grad_checkpoint", False)
         vit_precision = cfg.get("vit_precision", "fp16")
         freeze_vit = cfg.get("freeze_vit", True)
+        class_num = cfg.get("class_num")
+        loss_head_type = cfg.get("loss_head_type")
 
         prompt = cfg.get("prompt", "")
         max_txt_len = cfg.get("max_txt_len", 32)
@@ -275,6 +280,8 @@ class Blip2Lora(Blip2Base):
             opt_model=opt_model,
             prompt=prompt,
             max_txt_len=max_txt_len,
+            loss_head_type=loss_head_type,
+            class_num=class_num,
         )
         model.load_checkpoint_from_config(cfg)
 

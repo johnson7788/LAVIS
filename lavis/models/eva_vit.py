@@ -381,7 +381,7 @@ def interpolate_pos_embed(model, checkpoint_model):
         # height (== width) for the new position embedding
         new_size = int(num_patches ** 0.5)
         # class_token and dist_token are kept unchanged
-        if orig_size != new_size:
+        if orig_size != new_size:  #位置嵌入的原始大小和新的大小不同，它会打印一条消息，表示正在从原始大小插值到新的大小
             print("Position interpolate from %dx%d to %dx%d" % (orig_size, orig_size, new_size, new_size))
             extra_tokens = pos_embed_checkpoint[:, :num_extra_tokens]
             # only the position tokens are interpolated
@@ -431,7 +431,7 @@ def create_eva_vit_g(img_size=224,drop_path_rate=0.4,use_checkpoint=False,precis
         url, check_hash=False, progress=True
     )
     state_dict = torch.load(cached_file, map_location="cpu")    
-    interpolate_pos_embed(model,state_dict)
+    interpolate_pos_embed(model,state_dict)  #为啥要插值？
     
     incompatible_keys = model.load_state_dict(state_dict, strict=False)
 #     print(incompatible_keys)
