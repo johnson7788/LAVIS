@@ -15,6 +15,8 @@ model:
   lora_alpha: 16
   lora_dropout: 0.05
   lora_target_modules: ["self.query","self.value"]  #只对q-former进行微调
+  loss_head_type: "adaface" #cosface,arcface,adaface
+  class_num: 
 
 datasets:
   comestic_caption: # name of the dataset builder

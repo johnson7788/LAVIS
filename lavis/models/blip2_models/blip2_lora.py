@@ -68,7 +68,7 @@ class Blip2Lora(Blip2Base):
         self.Qformer, self.query_tokens = self.init_Qformer(
             num_query_token, self.visual_encoder.num_features
         )
-        self.head = build_head(embedding_size=512,classnum=70722,m=0.4,h=0.333,s=64.,t_alpha=1.0)
+        self.head = build_head(head_type="adaface",embedding_size=512,class_num=70722,m=0.4,h=0.333,s=64.,t_alpha=1.0,)
         self.Qformer.cls = None
         self.Qformer.bert.embeddings.word_embeddings = None
         self.Qformer.bert.embeddings.position_embeddings = None

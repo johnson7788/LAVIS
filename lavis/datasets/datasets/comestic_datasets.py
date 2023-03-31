@@ -32,11 +32,11 @@ class ComesticDataset(BaseDataset, __DisplMixin):
         ann_root (string): directory to store the annotation file
         """
         super().__init__(vis_processor, text_processor, vis_root, ann_paths)
-
+        # 加载图片的id
         self.img_ids = {}
         n = 0
         for ann in self.annotation:
-            img_id = ann["image_id"]
+            img_id = ann["md5"]
             if img_id not in self.img_ids.keys():
                 self.img_ids[img_id] = n
                 n += 1
