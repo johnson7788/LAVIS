@@ -15,7 +15,7 @@ model:
   lora_alpha: 16
   lora_dropout: 0.05
   lora_target_modules: ["self.query","self.value"]  #只对q-former进行微调
-  loss_head_type: "adaface" #cosface,arcface,adaface
+  loss_head_type: "arcface" #cosface,arcface,adaface
   class_num: 23689 #商品的数量，类别数量
 
 datasets:

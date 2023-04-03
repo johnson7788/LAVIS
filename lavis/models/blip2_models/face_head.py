@@ -77,7 +77,7 @@ class AdaFace(Module):
     def forward(self, embbedings, norms, label):
 
         kernel_norm = l2_norm(self.kernel,axis=0)
-        cosine = torch.mm(embbedings,kernel_norm)
+        cosine = torch.matmul(embbedings,kernel_norm)
         cosine = cosine.clamp(-1+self.eps, 1-self.eps) # for stability
 
         safe_norms = torch.clip(norms, min=0.001, max=100) # for stability
@@ -101,7 +101,7 @@ class AdaFace(Module):
 
         # g_angular
         m_arc = torch.zeros(label.size()[0], cosine.size()[1], device=cosine.device)
-        m_arc.scatter_(1, label.reshape(-1, 1), 1.0)
+        m_arc.scatter_(1, label.reshape(-1, 1), 1.0)  #这里会报错，m_arc有问题
         g_angular = self.m * margin_scaler * -1
         m_arc = m_arc * g_angular
         theta = cosine.acos()
@@ -163,18 +163,22 @@ class ArcFace(Module):
         self.eps = 1e-4
 
     def forward(self, embbedings, norms, label):
-
-        kernel_norm = l2_norm(self.kernel,axis=0)
-        cosine = torch.mm(embbedings,kernel_norm)
+        #基于角度(cosine)的分类损失
+        kernel_norm = l2_norm(self.kernel,axis=0) #计算欧几里得范数归一化的神经网络权重(self.kernel) 。用作下游计算的重要参数。
+        # cosine 计算入射向量(embbedings)与归一化权重的点积,作为两者 cos 角度。结果 clamp 到 -1 到 1 范围以保证数值 stability。
+        cosine = torch.matmul(embbedings,kernel_norm)
         cosine = cosine.clamp(-1+self.eps, 1-self.eps) # for stability
-
+        # m_hot 是标签(one-hot encoded labels)。通过 .scatter_() 重写为大小为 cosine 矩阵的行数和列数,且散列位置由 label 指定,填充值 m。
+        # 这样 m_hot 表示 label 对应的列是值 m。
         m_hot = torch.zeros(label.size()[0], cosine.size()[1], device=cosine.device)
         m_hot.scatter_(1, label.reshape(-1, 1), self.m)
-
+        # theta 计算 cosine 对应的弧度,
         theta = cosine.acos()
-
+        # theta_m 同理,但视 m_hot 为权重,与 theta 相加以获得修正后的弧度。
         theta_m = torch.clip(theta + m_hot, min=self.eps, max=math.pi-self.eps)
+        # cosine_m 通过 theta_m 反弧度余弦,获得修正后的 cosine 值。
         cosine_m = theta_m.cos()
+        # scaled_cosine_m 最后通过缩放因子 s 进行缩放,作为最终损失输出。
         scaled_cosine_m = cosine_m * self.s
 
         return scaled_cosine_m

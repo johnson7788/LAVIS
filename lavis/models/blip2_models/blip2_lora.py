@@ -159,7 +159,8 @@ class Blip2Lora(Blip2Base):
         )
         # 多模态的嵌入特征
         multimodal_embeds = output.last_hidden_state
-        # L2范数
+        # L2范数, 1: 指定 norm 运算会在 multimodal_embeds 的第二维度(index=1)上进行。也可以选择 0 进行行wise norm,或者更高维等。
+        # True: 选择是否返回 norm 后的值,True 时 norm 会返回范数值,False 时仅进行范数计算但不返回值。
         norm = torch.norm(multimodal_embeds, 2, 1, True)
         multimodal_embeds_output = multimodal_embeds.div(norm)
         cos_thetas = self.head(embbedings=multimodal_embeds_output, norms=norm, label=labels)
