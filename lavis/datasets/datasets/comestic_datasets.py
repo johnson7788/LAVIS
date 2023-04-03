@@ -51,11 +51,18 @@ class ComesticDataset(BaseDataset, __DisplMixin):
         caption_text = ann["text_a"] + " " + ann["text_b"]
         image = self.vis_processor(image)
         caption = self.text_processor(caption_text)
-
+        label = ann["label"]
+        brand_id = ann["brand_id"]
+        category_id = ann['category_id']
+        bigcatg_id = ann['bigcatg_id']
         return {
             "image": image,
             "text_input": caption,
             "image_id": self.img_ids[ann["md5"]],
+            "label": label,
+            "brand_id": brand_id,
+            "category_id": category_id,
+            "bigcatg_id": bigcatg_id,
         }
 
 

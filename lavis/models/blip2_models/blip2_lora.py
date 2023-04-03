@@ -56,7 +56,6 @@ class Blip2Lora(Blip2Base):
         apply_lemmatizer=False,
     ):
         super().__init__()
-        embed_dim = 256
         self.tokenizer = self.init_tokenizer()
         # 初始化视觉编码器，例如eva_clip_g
         self.visual_encoder, self.ln_vision = self.init_vision_encoder(
@@ -72,12 +71,10 @@ class Blip2Lora(Blip2Base):
         self.Qformer, self.query_tokens = self.init_Qformer(
             num_query_token, self.visual_encoder.num_features
         )
-        self.head = build_head(head_type=loss_head_type,embedding_size=512,class_num=class_num,m=0.4,h=0.333,s=64.,t_alpha=1.0,)
-        for layer in self.Qformer.bert.encoder.layer:
-            layer.output = None
-            layer.intermediate = None
-        self.vision_proj = nn.Linear(self.Qformer.config.hidden_size, embed_dim)
-        self.text_proj = nn.Linear(self.Qformer.config.hidden_size, embed_dim)
+        self.head = build_head(head_type=loss_head_type,embedding_size=self.Qformer.config.hidden_size,class_num=class_num,m=0.4,h=0.333,s=64.,t_alpha=1.0,)
+        # for layer in self.Qformer.bert.encoder.layer:
+        #     layer.output = None
+        #     layer.intermediate = None
 
         self.t5_tokenizer = T5TokenizerFast.from_pretrained(t5_model)
         t5_config = T5Config.from_pretrained(t5_model)
@@ -85,13 +82,14 @@ class Blip2Lora(Blip2Base):
         self.t5_model = T5EncoderModel.from_pretrained(
             t5_model, config=t5_config
         )
-
         for name, param in self.t5_model.named_parameters():
             param.requires_grad = False
             param.data = param.data.bfloat16()
-
-        self.t5_proj = nn.Linear(
-            self.Qformer.config.hidden_size, self.t5_model.config.hidden_size
+        # 图像特征处理
+        self.vision_proj = nn.Linear(self.Qformer.config.hidden_size, self.Qformer.config.hidden_size)
+        # 文本特征处理
+        self.text_proj = nn.Linear(
+            self.t5_model.config.hidden_size, self.Qformer.config.hidden_size
         )
 
         self.max_txt_len = max_txt_len
@@ -103,6 +101,7 @@ class Blip2Lora(Blip2Base):
     def forward(self, samples):
         image = samples["image"]   # [batch_size, 3, 364, 364] # 获取输入数据中的图像
         caption = samples["text_input"]
+        labels = samples["label"]
         # 使用VIT处理图像特征处理-------------------------
         with self.maybe_autocast():  #处理图像特征,自动混合精度
             image_embeds = self.ln_vision(self.visual_encoder(image)) # 图像特征经过视觉编码器和层归一化处理后得到的嵌入特征，[batch_size, 677, 1408]
@@ -143,7 +142,12 @@ class Blip2Lora(Blip2Base):
         )
         # 多模态特征处理,使用Qformer处理-------------------------
         # 图像和文本的掩码
-        attention_mask = torch.cat([image_atts, text.attention_mask], dim=1)
+        # attention_mask = torch.cat([image_atts, text.attention_mask], dim=1)
+        # attention_mask = text.attention_mask
+        image_mask = torch.ones(query_tokens.size()[:-1], dtype=torch.long).to(
+            image.device
+        )
+        attention_mask = torch.cat([image_mask, text.attention_mask], dim=1)
         # 图像和文本的嵌入特征，Qformer使用的"bert-base-uncased"初始化，如果直接传入input_ids，有中文，可能会有问题
         output = self.Qformer.bert(
             text.input_ids,
@@ -154,7 +158,12 @@ class Blip2Lora(Blip2Base):
             return_dict=True,
         )
         # 多模态的嵌入特征
-        multimodal_embeds = output.last_hidden_state[:, : query_tokens.size(1), :]
+        multimodal_embeds = output.last_hidden_state
+        # L2范数
+        norm = torch.norm(multimodal_embeds, 2, 1, True)
+        multimodal_embeds_output = multimodal_embeds.div(norm)
+        cos_thetas = self.head(embbedings=multimodal_embeds_output, norms=norm, label=labels)
+        loss_train = self.cross_entropy_loss(cos_thetas, labels)
 
         result = dict(
             image_embeds=image_embeds,
