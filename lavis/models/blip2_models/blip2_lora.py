@@ -99,9 +99,6 @@ class Blip2Lora(Blip2Base):
         self.max_txt_len = max_txt_len
         self.prompt = prompt
 
-        self._apply_lemmatizer = apply_lemmatizer
-        self._lemmatizer = None
-
     def forward(self, samples):
         image = samples["image"]   # [batch_size, 3, 364, 364] # 获取输入数据中的图像
         caption = samples["text_input"]
@@ -152,10 +149,10 @@ class Blip2Lora(Blip2Base):
             image.device
         )
         attention_mask = torch.cat([image_mask, text.attention_mask], dim=1)
+        query_embeds = torch.cat([query_tokens, text_embeds], dim=1)
         # 图像和文本的嵌入特征，Qformer使用的"bert-base-uncased"初始化，如果直接传入input_ids，有中文，可能会有问题
         output = self.Qformer.bert(
-            text.input_ids,
-            query_embeds=query_tokens, #图像特征
+            query_embeds=query_embeds, #图像特征
             attention_mask=attention_mask,
             encoder_hidden_states=image_embeds,
             encoder_attention_mask=image_atts,
