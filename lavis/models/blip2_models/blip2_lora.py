@@ -86,14 +86,14 @@ class Blip2Lora(Blip2Base):
         self.text_model = OPTModel.from_pretrained(
             text_model, config=text_config
         )
-        for name, param in self.t5_model.named_parameters():
+        for name, param in self.text_model.named_parameters():
             param.requires_grad = False
             param.data = param.data.bfloat16()
         # 图像特征处理
         self.vision_proj = nn.Linear(self.Qformer.config.hidden_size, self.Qformer.config.hidden_size)
         # 文本特征处理
         self.text_proj = nn.Linear(
-            self.t5_model.config.hidden_size, self.Qformer.config.hidden_size
+            self.text_model.config.hidden_size, self.Qformer.config.hidden_size
         )
 
         self.max_txt_len = max_txt_len
@@ -126,7 +126,7 @@ class Blip2Lora(Blip2Base):
         )
         # 使用t5模型处理文本特征处理-------------------------
         with self.maybe_autocast(dtype=torch.bfloat16):
-            text = self.t5_tokenizer(
+            text = self.text_tokenizer(
                 caption,
                 truncation=True,
                 padding="longest",
@@ -134,7 +134,7 @@ class Blip2Lora(Blip2Base):
                 return_tensors="pt",
             ).to(image.device)
 
-            text_output = self.t5_model(
+            text_output = self.text_model(
                 input_ids=text.input_ids,
                 attention_mask=text.attention_mask,
                 return_dict=True,
