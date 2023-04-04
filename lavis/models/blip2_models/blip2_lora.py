@@ -185,7 +185,7 @@ class Blip2Lora(Blip2Base):
         return {"loss": loss}
 
     @torch.no_grad()
-    def generate(
+    def predict(
         self,
         samples,
         use_nucleus_sampling=False,
@@ -212,68 +212,77 @@ class Blip2Lora(Blip2Base):
         Returns:
             captions (list): A list of strings of length batch_size * num_captions.
         """
-        image = samples["image"]
-        with self.maybe_autocast():
-            image_embeds = self.ln_vision(self.visual_encoder(image))
-            image_atts = torch.ones(image_embeds.size()[:-1], dtype=torch.long).to(
-                image.device
-            )
+        return 0.5  # TODO,临时返回
+        image = samples["image"]   # [batch_size, 3, 364, 364] # 获取输入数据中的图像
+        caption = samples["text_input"]
+        labels = samples["label"]
+        # 使用VIT处理图像特征处理-------------------------
+        with self.maybe_autocast():  #处理图像特征,自动混合精度
+            image_embeds = self.ln_vision(self.visual_encoder(image)) # 图像特征经过视觉编码器和层归一化处理后得到的嵌入特征，[batch_size, 677, 1408]
+        image_atts = torch.ones(image_embeds.size()[:-1], dtype=torch.long).to(
+            image.device
+        ) #图像特征的注意力掩码 【batch_size, 677】
+        # 处理图像特征
+        query_tokens = self.query_tokens.expand(image_embeds.shape[0], -1, -1)  # 查询语句的嵌入特征，[batch_size, 32, 768]
+        query_output = self.Qformer.bert(
+            query_embeds=query_tokens,
+            encoder_hidden_states=image_embeds,
+            encoder_attention_mask=image_atts,
+            return_dict=True,
+        ) #query_output dict, 使用Qformer模型对查询语句和图像特征进行编码, last_hidden_state: [batch_size, 32, 768]
+        # inputs_opt图像的特征, image_features:[batch_size, 32, 256]
+        image_features = F.normalize(
+            self.vision_proj(query_output.last_hidden_state), dim=-1
+        )
+        # 使用t5模型处理文本特征处理-------------------------
+        with self.maybe_autocast(dtype=torch.bfloat16):
+            text = self.text_tokenizer(
+                caption,
+                truncation=True,
+                padding="longest",
+                max_length=self.max_txt_len,
+                return_tensors="pt",
+            ).to(image.device)
 
-            query_tokens = self.query_tokens.expand(image_embeds.shape[0], -1, -1)
-            query_output = self.Qformer.bert(
-                query_embeds=query_tokens,
-                encoder_hidden_states=image_embeds,
-                encoder_attention_mask=image_atts,
+            text_output = self.text_model(
+                input_ids=text.input_ids,
+                attention_mask=text.attention_mask,
                 return_dict=True,
             )
 
-            inputs_opt = self.opt_proj(query_output.last_hidden_state)
-            atts_opt = torch.ones(inputs_opt.size()[:-1], dtype=torch.long).to(
-                image.device
-            )
-
-            if "prompt" in samples.keys():
-                prompt = samples["prompt"]
-            else:
-                prompt = self.prompt
-
-            prompt = [prompt] * image.size(0)
-
-            opt_tokens = self.opt_tokenizer(prompt, return_tensors="pt").to(
-                image.device
-            )
-            input_ids = opt_tokens.input_ids
-            attention_mask = torch.cat([atts_opt, opt_tokens.attention_mask], dim=1)
-
-            if use_nucleus_sampling:
-                query_embeds = inputs_opt.repeat_interleave(num_captions, dim=0)
-                num_beams = 1
-            else:
-                # query_embeds = inputs_opt # 和trasformers==4.27.1的transformers/generation/utils.py的679到683冲突
-                query_embeds = inputs_opt.repeat_interleave(num_beams, dim=0)
-
-            outputs = self.opt_model.generate(
-                input_ids=input_ids,
-                query_embeds=query_embeds,
-                attention_mask=attention_mask,
-                do_sample=use_nucleus_sampling,
-                top_p=top_p,
-                temperature=temperature,
-                num_beams=num_beams,
-                max_new_tokens=max_length,
-                min_length=min_length,
-                eos_token_id=self.eos_token_id,
-                repetition_penalty=repetition_penalty,
-                length_penalty=length_penalty,
-                num_return_sequences=num_captions,
-            )
-
-            prompt_length = opt_tokens.input_ids.shape[1]
-            output_text = self.opt_tokenizer.batch_decode(
-                outputs[:, prompt_length:], skip_special_tokens=True
-            )
-            output_text = [text.strip() for text in output_text]
-            return output_text
+        text_features = F.normalize(
+            self.text_proj(text_output.last_hidden_state), dim=-1
+        )
+        # text_features = F.normalize(
+        #     self.text_proj(text_output.last_hidden_state[:, 0, :]), dim=-1
+        # )
+        # 多模态特征处理,使用Qformer处理-------------------------
+        # 图像和文本的掩码
+        # attention_mask = torch.cat([image_atts, text.attention_mask], dim=1)
+        # attention_mask = text.attention_mask
+        image_mask = torch.ones(query_tokens.size()[:-1], dtype=torch.long).to(
+            image.device
+        )
+        # attention_mask = torch.cat([image_mask, text.attention_mask], dim=1)
+        # query_embeds = torch.cat([query_tokens, text_embeds], dim=2)
+        # 图像和文本的嵌入特征，Qformer使用的"bert-base-uncased"初始化，如果直接传入input_ids，有中文，可能会有问题
+        output = self.Qformer.bert(
+            query_embeds=text_features, #图像特征
+            attention_mask=text.attention_mask,
+            encoder_hidden_states=image_embeds,
+            encoder_attention_mask=image_atts,
+            return_dict=True,
+        )
+        # 多模态的嵌入特征
+        multimodal_embeds = output.last_hidden_state
+        # 取第一个token的嵌入特征
+        multimodal_embeds_first = multimodal_embeds[:, 0, :]
+        # L2范数, 1: 指定 norm 运算会在 multimodal_embeds 的第二维度(index=1)上进行。也可以选择 0 进行行wise norm,或者更高维等。
+        # True: 选择是否返回 norm 后的值,True 时 norm 会返回范数值,False 时仅进行范数计算但不返回值。
+        norm = torch.norm(multimodal_embeds_first, 2, 1, True)
+        multimodal_embeds_output = multimodal_embeds_first.div(norm)
+        # 返回向量就行了，对于评估来说
+        return multimodal_embeds_output
 
     @classmethod
     def from_config(cls, cfg):

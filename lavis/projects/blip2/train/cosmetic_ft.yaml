@@ -16,7 +16,7 @@ model:
   lora_dropout: 0.05
   lora_target_modules: ["self.query","self.value"]  #只对q-former进行微调
   loss_head_type: "arcface" #cosface,arcface,adaface
-  class_num: 23689 #商品的数量，类别数量
+  class_num: 23758 #商品的数量，类别数量
 
 datasets:
   comestic_caption: # name of the dataset builder
@@ -33,7 +33,7 @@ datasets:
           prompt: ""
         eval:
           name: "blip_caption"
-    type: "mini"  #mini数据集， 或 default 默认数据集
+    type: "default"  #mini数据集， 或 default 默认数据集
     # build_info:
     #     images:
     #         storage: '/export/share/datasets/vision/coco/images/'
@@ -63,7 +63,7 @@ run:
   amp: True
   resume_ckpt_path: null
 
-  evaluate: True
+  evaluate: False
   train_splits: ["train"]
   valid_splits: ["val"]
   test_splits: ["test"]
