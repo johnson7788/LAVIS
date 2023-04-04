@@ -10,6 +10,7 @@ import torch
 from torch.cuda.amp import autocast as autocast
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.nn import CrossEntropyLoss
 from lavis.common.registry import registry
 from lavis.models.blip2_models.blip2 import Blip2Base, disabled_train
 from transformers import T5TokenizerFast
@@ -61,6 +62,7 @@ class Blip2Lora(Blip2Base):
         apply_lemmatizer=False,
     ):
         super().__init__()
+        self.class_num = class_num
         self.tokenizer = self.init_tokenizer()
         # 初始化视觉编码器，例如eva_clip_g
         self.visual_encoder, self.ln_vision = self.init_vision_encoder(
@@ -98,6 +100,7 @@ class Blip2Lora(Blip2Base):
 
         self.max_txt_len = max_txt_len
         self.prompt = prompt
+        self.cross_entropy_loss = CrossEntropyLoss()
 
     def forward(self, samples):
         image = samples["image"]   # [batch_size, 3, 364, 364] # 获取输入数据中的图像
@@ -137,10 +140,12 @@ class Blip2Lora(Blip2Base):
                 return_dict=True,
             )
 
-        text_embeds = text_output.last_hidden_state
         text_features = F.normalize(
-            self.text_proj(text_output.last_hidden_state[:, 0, :]), dim=-1
+            self.text_proj(text_output.last_hidden_state), dim=-1
         )
+        # text_features = F.normalize(
+        #     self.text_proj(text_output.last_hidden_state[:, 0, :]), dim=-1
+        # )
         # 多模态特征处理,使用Qformer处理-------------------------
         # 图像和文本的掩码
         # attention_mask = torch.cat([image_atts, text.attention_mask], dim=1)
@@ -148,32 +153,34 @@ class Blip2Lora(Blip2Base):
         image_mask = torch.ones(query_tokens.size()[:-1], dtype=torch.long).to(
             image.device
         )
-        attention_mask = torch.cat([image_mask, text.attention_mask], dim=1)
-        query_embeds = torch.cat([query_tokens, text_embeds], dim=1)
+        # attention_mask = torch.cat([image_mask, text.attention_mask], dim=1)
+        # query_embeds = torch.cat([query_tokens, text_embeds], dim=2)
         # 图像和文本的嵌入特征，Qformer使用的"bert-base-uncased"初始化，如果直接传入input_ids，有中文，可能会有问题
         output = self.Qformer.bert(
-            query_embeds=query_embeds, #图像特征
-            attention_mask=attention_mask,
+            query_embeds=text_features, #图像特征
+            attention_mask=text.attention_mask,
             encoder_hidden_states=image_embeds,
             encoder_attention_mask=image_atts,
             return_dict=True,
         )
         # 多模态的嵌入特征
         multimodal_embeds = output.last_hidden_state
+        # 取第一个token的嵌入特征
+        multimodal_embeds_first = multimodal_embeds[:, 0, :]
         # L2范数, 1: 指定 norm 运算会在 multimodal_embeds 的第二维度(index=1)上进行。也可以选择 0 进行行wise norm,或者更高维等。
         # True: 选择是否返回 norm 后的值,True 时 norm 会返回范数值,False 时仅进行范数计算但不返回值。
-        norm = torch.norm(multimodal_embeds, 2, 1, True)
-        multimodal_embeds_output = multimodal_embeds.div(norm)
+        norm = torch.norm(multimodal_embeds_first, 2, 1, True)
+        multimodal_embeds_output = multimodal_embeds_first.div(norm)
         cos_thetas = self.head(embbedings=multimodal_embeds_output, norms=norm, label=labels)
-        loss_train = self.cross_entropy_loss(cos_thetas, labels)
+        loss = self.cross_entropy_loss(cos_thetas, labels)
 
-        result = dict(
-            image_embeds=image_embeds,
-            image_embeds_proj=image_features,
-            text_embeds=text_embeds,
-            text_embeds_proj=text_features,
-            multimodal_embeds=multimodal_embeds,
-        )
+        # result = dict(
+        #     image_embeds=image_embeds,
+        #     image_embeds_proj=image_features,
+        #     text_embeds=text_embeds,
+        #     text_embeds_proj=text_features,
+        #     multimodal_embeds=multimodal_embeds,
+        # )
         # 计算损失
         return {"loss": loss}
 
