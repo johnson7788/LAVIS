@@ -212,7 +212,7 @@ class Blip2Lora(Blip2Base):
         Returns:
             captions (list): A list of strings of length batch_size * num_captions.
         """
-        return 0.5  # TODO,临时返回
+        return [0.5] * samples["image"].shape[0]  # TODO,临时返回
         image = samples["image"]   # [batch_size, 3, 364, 364] # 获取输入数据中的图像
         caption = samples["text_input"]
         labels = samples["label"]
