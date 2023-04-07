@@ -291,6 +291,7 @@ class Blip2Lora(Blip2Base):
         result = {
             "predictions": logits,
             "targets": labels,
+            "vectors": multimodal_embeds_output,
         }
         return result
 

@@ -1,0 +1,1 @@
+/opt/lang/multimodal/lavis_predict.py

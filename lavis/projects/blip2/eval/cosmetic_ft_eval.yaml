@@ -41,7 +41,7 @@ datasets:
 #             storage: '/export/share/datasets/vision/coco/images/'
 
 run:
-  task: multimodal_classification
+  task: multimodal_retrieval
   # optimizer
   batch_size_train: 32
   batch_size_eval: 16
