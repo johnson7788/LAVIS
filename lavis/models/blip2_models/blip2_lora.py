@@ -59,7 +59,9 @@ class Blip2Lora(Blip2Base):
         max_txt_len=32,
         loss_head_type="adaface",
         class_num=70722,
-        apply_lemmatizer=False,
+        brand_num=800,
+        category_num=161,
+        bigcatg_num=4,
     ):
         super().__init__()
         self.class_num = class_num
@@ -78,7 +80,10 @@ class Blip2Lora(Blip2Base):
         self.Qformer, self.query_tokens = self.init_Qformer(
             num_query_token, self.visual_encoder.num_features
         )
-        self.head = build_head(head_type=loss_head_type,embedding_size=self.Qformer.config.hidden_size,class_num=class_num,m=0.4,h=0.333,s=64.,t_alpha=1.0,)
+        self.head = build_head(head_type=loss_head_type,embedding_size=self.Qformer.config.hidden_size,class_num=class_num,m=0.4,h=0.333,s=64.,t_alpha=1.0)
+        self.brand_head = build_head(head_type=loss_head_type,embedding_size=self.Qformer.config.hidden_size,class_num=brand_num,m=0.4,h=0.333,s=64.,t_alpha=1.0)
+        self.category_head = build_head(head_type=loss_head_type,embedding_size=self.Qformer.config.hidden_size,class_num=category_num,m=0.4,h=0.333,s=64.,t_alpha=1.0)
+        self.bigcatg_head = build_head(head_type=loss_head_type,embedding_size=self.Qformer.config.hidden_size,class_num=bigcatg_num,m=0.4,h=0.333,s=64.,t_alpha=1.0)
         # for layer in self.Qformer.bert.encoder.layer:
         #     layer.output = None
         #     layer.intermediate = None
@@ -97,7 +102,8 @@ class Blip2Lora(Blip2Base):
         self.text_proj = nn.Linear(
             self.text_model.config.hidden_size, self.Qformer.config.hidden_size
         )
-
+        # 品牌的预测
+        self.brand_proj = nn.Linear(self.Qformer.config.hidden_size, brand_num)
         self.max_txt_len = max_txt_len
         self.prompt = prompt
         self.cross_entropy_loss = CrossEntropyLoss()
@@ -106,6 +112,9 @@ class Blip2Lora(Blip2Base):
         image = samples["image"]   # [batch_size, 3, 364, 364] # 获取输入数据中的图像
         caption = samples["text_input"]
         labels = samples["label"]
+        brand_id = samples["brand_id"]
+        category_id = samples["category_id"]
+        bigcatg_id = samples["bigcatg_id"]
         # 使用VIT处理图像特征处理-------------------------
         with self.maybe_autocast():  #处理图像特征,自动混合精度
             image_embeds = self.ln_vision(self.visual_encoder(image)) # 图像特征经过视觉编码器和层归一化处理后得到的嵌入特征，[batch_size, 677, 1408]
@@ -113,17 +122,18 @@ class Blip2Lora(Blip2Base):
             image.device
         ) #图像特征的注意力掩码 【batch_size, 677】
         # 处理图像特征
-        query_tokens = self.query_tokens.expand(image_embeds.shape[0], -1, -1)  # 查询语句的嵌入特征，[batch_size, 32, 768]
-        query_output = self.Qformer.bert(
-            query_embeds=query_tokens,
-            encoder_hidden_states=image_embeds,
-            encoder_attention_mask=image_atts,
-            return_dict=True,
-        ) #query_output dict, 使用Qformer模型对查询语句和图像特征进行编码, last_hidden_state: [batch_size, 32, 768]
+        # query_tokens = self.query_tokens.expand(image_embeds.shape[0], -1, -1)  # 查询语句的嵌入特征，[batch_size, 32, 768]
+        # query_output = self.Qformer.bert(
+        #     query_embeds=query_tokens,
+        #     encoder_hidden_states=image_embeds,
+        #     encoder_attention_mask=image_atts,
+        #     return_dict=True,
+        # )
+        #query_output dict, 使用Qformer模型对查询语句和图像特征进行编码, last_hidden_state: [batch_size, 32, 768]
         # inputs_opt图像的特征, image_features:[batch_size, 32, 256]
-        image_features = F.normalize(
-            self.vision_proj(query_output.last_hidden_state), dim=-1
-        )
+        # image_features = F.normalize(
+        #     self.vision_proj(query_output.last_hidden_state), dim=-1
+        # )
         # 使用t5模型处理文本特征处理-------------------------
         with self.maybe_autocast(dtype=torch.bfloat16):
             text = self.text_tokenizer(
@@ -150,9 +160,9 @@ class Blip2Lora(Blip2Base):
         # 图像和文本的掩码
         # attention_mask = torch.cat([image_atts, text.attention_mask], dim=1)
         # attention_mask = text.attention_mask
-        image_mask = torch.ones(query_tokens.size()[:-1], dtype=torch.long).to(
-            image.device
-        )
+        # image_mask = torch.ones(query_tokens.size()[:-1], dtype=torch.long).to(
+        #     image.device
+        # )
         # attention_mask = torch.cat([image_mask, text.attention_mask], dim=1)
         # query_embeds = torch.cat([query_tokens, text_embeds], dim=2)
         # 图像和文本的嵌入特征，Qformer使用的"bert-base-uncased"初始化，如果直接传入input_ids，有中文，可能会有问题
@@ -172,15 +182,24 @@ class Blip2Lora(Blip2Base):
         norm = torch.norm(multimodal_embeds_first, 2, 1, True)
         multimodal_embeds_output = multimodal_embeds_first.div(norm)
         cos_thetas = self.head(embbedings=multimodal_embeds_output, norms=norm, label=labels)
-        loss = self.cross_entropy_loss(cos_thetas, labels)
-
-        # result = dict(
-        #     image_embeds=image_embeds,
-        #     image_embeds_proj=image_features,
-        #     text_embeds=text_embeds,
-        #     text_embeds_proj=text_features,
-        #     multimodal_embeds=multimodal_embeds,
-        # )
+        # 产品的损失
+        loss_product = self.cross_entropy_loss(cos_thetas, labels)
+        # 品牌的损失
+        cos_brand = self.brand_head(embbedings=multimodal_embeds_output, norms=norm, label=brand_id)
+        loss_brand = self.cross_entropy_loss(cos_brand, brand_id)
+        # 类别的损失
+        cos_category = self.category_head(embbedings=multimodal_embeds_output, norms=norm, label=category_id)
+        loss_category = self.cross_entropy_loss(cos_category, category_id)
+        # 大品类的损失
+        cos_bigcatg = self.bigcatg_head(embbedings=multimodal_embeds_output, norms=norm, label=bigcatg_id)
+        loss_bigcatg = self.cross_entropy_loss(cos_bigcatg, bigcatg_id)
+        # 品牌直接预测的损失
+        brand_logits = self.brand_proj(multimodal_embeds_output)
+        loss_brand_direct = self.cross_entropy_loss(brand_logits, brand_id)
+        # 总的损失
+        loss = loss_product + loss_brand + loss_category + loss_brand_direct + loss_bigcatg
+        logging.info("loss_product: {}, loss_brand: {}, loss_category: {}, loss_brand_direct: {}, loss_bigcatg: {}".format(loss_product, loss_brand, loss_category, loss_brand_direct, loss_bigcatg))
+        logging.info("total_loss: {}".format(loss))
         # 计算损失
         return {"loss": loss}
 
@@ -326,6 +345,9 @@ class Blip2Lora(Blip2Base):
             max_txt_len=max_txt_len,
             loss_head_type=loss_head_type,
             class_num=class_num,
+            brand_num=cfg.get("brand_num"),
+            category_num=cfg.get("category_num"),
+            bigcatg_num=cfg.get("bigcatg_num"),
         )
         model.load_checkpoint_from_config(cfg)
 

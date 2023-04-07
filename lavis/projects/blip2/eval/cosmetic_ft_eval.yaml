@@ -25,6 +25,9 @@ model:
   lora_target_modules: [ "self.query","self.value" ]  #只对q-former进行微调
   loss_head_type: "arcface" #cosface,arcface,adaface
   class_num: 23758 #商品的数量，类别数量,20230404150219
+  brand_num: 800 #商品的数量，类别数量,20230404150219
+  category_num: 161 #商品的数量，类别数量,20230404150219
+  bigcatg_num: 4 #商品的数量，类别数量,20230404150219
 
 datasets:
   comestic_caption: # name of the dataset builder
