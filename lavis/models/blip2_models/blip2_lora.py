@@ -306,11 +306,18 @@ class Blip2Lora(Blip2Base):
         norm = torch.norm(multimodal_embeds_first, 2, 1, True)
         multimodal_embeds_output = multimodal_embeds_first.div(norm)
         logits = torch.mm(multimodal_embeds_output, self.head.kernel)
+        category_logits = torch.mm(multimodal_embeds_output, self.category_head.kernel)
+        bigcatg_logits = torch.mm(multimodal_embeds_output, self.bigcatg_head.kernel)
+        brand_logits = self.brand_proj(multimodal_embeds_output)
+
         # 返回向量就行了，对于评估来说
         result = {
             "predictions": logits,
             "targets": labels,
             "vectors": multimodal_embeds_output,
+            "brand_logits": brand_logits,
+            "category_logits": category_logits,
+            "bigcatg_logits": bigcatg_logits,
         }
         return result
 

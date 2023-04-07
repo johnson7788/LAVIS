@@ -590,6 +590,14 @@ class RunnerBase:
         )
         logging.info("Saving checkpoint at epoch {} to {}.".format(cur_epoch, save_to))
         torch.save(save_obj, save_to)
+        #复制一份checkpoint，用cur_epoch命名
+        save_to = os.path.join(
+            self.output_dir,
+            "checkpoint_{}.pth".format(cur_epoch),
+        )
+        #复制一份checkpoint，用cur_epoch命名
+        logging.info("Saving checkpoint at epoch {} to {}.".format(cur_epoch, save_to))
+        torch.save(save_obj, save_to)
 
     def _reload_best_model(self, model):
         """

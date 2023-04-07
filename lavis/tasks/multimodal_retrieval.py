@@ -29,8 +29,14 @@ class MultimodalRetrievalTask(BaseTask):
         predictions = outputs["predictions"]
         targets = outputs["targets"]
         vectors = outputs["vectors"] # 向量
+        brand_logits = outputs["brand_logits"] # 向量
+        category_logits = outputs["category_logits"] # 向量
+        bigcatg_logits = outputs["bigcatg_logits"] # 向量
 
         predictions = predictions.max(1)[1].cpu().numpy()
+        brand_predictions = brand_logits.max(1)[1].cpu().numpy()
+        category_predictions = category_logits.max(1)[1].cpu().numpy()
+        bigcatg_predictions = bigcatg_logits.max(1)[1].cpu().numpy()
         targets = targets.cpu().numpy()
         vectors = vectors.cpu().numpy()
 
@@ -46,6 +52,9 @@ class MultimodalRetrievalTask(BaseTask):
                     "prediction": pred.item(),
                     "target": tgt.item(),
                     "vector": vector.tolist(),
+                    "brand_prediction": brand_predictions.item(),
+                    "category_prediction": category_predictions.item(),
+                    "bigcatg_prediction": bigcatg_predictions.item(),
                 }
             )
 
