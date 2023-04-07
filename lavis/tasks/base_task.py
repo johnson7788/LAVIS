@@ -85,7 +85,7 @@ class BaseTask:
         results = []
 
         for samples in metric_logger.log_every(data_loader, print_freq, header):
-            samples = prepare_sample(samples, cuda_enabled=cuda_enabled)
+            samples = prepare_sample(samples, cuda_enabled=cuda_enabled)  #数据放到CUDA上
 
             eval_output = self.valid_step(model=model, samples=samples)
             results.extend(eval_output)

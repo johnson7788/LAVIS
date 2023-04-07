@@ -447,22 +447,22 @@ class RunnerBase:
         Evaluate the model on a given split.
 
         Args:
-            split_name (str): name of the split to evaluate on.
-            cur_epoch (int): current epoch.
+            split_name (str): name of the split to evaluate on. eg:test
+            cur_epoch (int): current epoch. eg: best
             skip_reload_best (bool): whether to skip reloading the best checkpoint.
                 During training, we will reload the best checkpoint for validation.
-                During testing, we will use provided weights and skip reloading the best checkpoint .
+                测试期间，设为False，加载我们提供的权重，而不是训练时的best checkpoint.
         """
         data_loader = self.dataloaders.get(split_name, None)
         assert data_loader, "data_loader for split {} is None.".format(split_name)
 
         # TODO In validation, you need to compute loss as well as metrics
         # TODO consider moving to model.before_evaluation()
-        model = self.unwrap_dist_model(self.model)
+        model = self.unwrap_dist_model(self.model)  #模型配置
         if not skip_reload and cur_epoch == "best":
             model = self._reload_best_model(model)
         model.eval()
-
+        # 自定义的一些在评估前的设置
         self.task.before_evaluation(
             model=model,
             dataset=self.datasets[split_name],

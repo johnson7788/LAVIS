@@ -3,71 +3,60 @@
  # SPDX-License-Identifier: BSD-3-Clause
  # For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
 
+# Bleu_1: 0.832
+# Bleu_2: 0.691
+# Bleu_3: 0.556
+# Bleu_4: 0.438
+# METEOR: 0.317
+# ROUGE_L: 0.620
+# CIDEr: 1.461
+# SPICE: 0.252
+
 model:
   arch: blip2_lora
   model_type: caption_coco_opt2.7b
-  load_finetuned: True   #加载预训练模型还是加载微调模型，如果没有提供finetuned模型，那么就改成False，只加载pretrained模型
-  use_grad_checkpoint: True
+  use_grad_checkpoint: False
   freeze_vit: True   #是否冻结vit视觉模型，默认语言模型opt2.7b是冻结的,opt2.7b支持中文
   vit_precision: bfloat16  #fp16 # 会报错
   enable_lora: True
   lora_r: 8
   lora_alpha: 16
   lora_dropout: 0.05
-  lora_target_modules: ["self.query","self.value"]  #只对q-former进行微调
+  lora_target_modules: [ "self.query","self.value" ]  #只对q-former进行微调
   loss_head_type: "arcface" #cosface,arcface,adaface
   class_num: 23758 #商品的数量，类别数量,20230404150219
 
 datasets:
   comestic_caption: # name of the dataset builder
     vis_processor:
-        train:
-          name: "blip2_image_train"
-          image_size: 364
         eval:
           name: "blip_image_eval"
           image_size: 364
     text_processor:
-        train:
-          name: "blip_caption"
-          prompt: ""
         eval:
           name: "blip_caption"
-    type: "default"  #mini数据集， 或 default 默认数据集
-    # build_info:
-    #     images:
-    #         storage: '/export/share/datasets/vision/coco/images/'
+          prompt: ""
+#     build_info:
+#         images:
+#             storage: '/export/share/datasets/vision/coco/images/'
 
 run:
   task: multimodal_classification
   # optimizer
-  lr_sched: "linear_warmup_cosine_lr"
-  init_lr: 1e-5
-  min_lr: 0
-  warmup_lr: 1e-8
-  warmup_steps: 1000
-  weight_decay: 0.05
-  max_epoch: 5
-  batch_size_train: 16
-  batch_size_eval: 8
+  batch_size_train: 32
+  batch_size_eval: 16
   num_workers: 0
-  accum_grad_iters: 1
 
   max_len: 30
   min_len: 8
   num_beams: 5
 
   seed: 42
-  output_dir: "output/BLIP2/Cosmetic"
+  output_dir: "output/BLIP2/eval"
 
-  amp: True
-  resume_ckpt_path: null
-
-  evaluate: False
-  train_splits: ["train"]
-  valid_splits: ["val"]
+  evaluate: True
   test_splits: ["test"]
-#  device: "cpu"
+
   device: "cuda"
   world_size: 1
   dist_url: "env://"

@@ -65,21 +65,22 @@ def main():
     # os.environ["NCCL_BLOCKING_WAIT"] = "1"
 
     # set before init_distributed_mode() to ensure the same job_id shared across all ranks.
-    job_id = now()
-
+    job_id = now()  #任务唯一id生成
+    # 解析配置
     cfg = Config(parse_args())
-
+    # 初始化分布式模式
     init_distributed_mode(cfg.run_cfg)
-
+    # 设置随机种子
     setup_seeds(cfg)
-
+    # 设置日志
     # set after init_distributed_mode() to only log on master.
     setup_logger()
-
+    # 打印配置
     cfg.pretty_print()
-
+    # 设置任务
     task = tasks.setup_task(cfg)
     datasets = task.build_datasets(cfg)
+    # 设置模型
     model = task.build_model(cfg)
 
     runner = RunnerBase(

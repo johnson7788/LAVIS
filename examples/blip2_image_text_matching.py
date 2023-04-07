@@ -17,7 +17,6 @@ from lavis.processors import load_processor
 
 
 raw_image = Image.open("../docs/_static/merlion.png").convert("RGB")
-display(raw_image.resize((596, 437)))
 
 
 # In[ ]:
