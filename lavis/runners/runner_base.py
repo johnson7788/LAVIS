@@ -403,7 +403,8 @@ class RunnerBase:
             if self.evaluate_only:
                 break
 
-            dist.barrier()
+
+            # dist.barrier()
 
         # testing phase
         test_epoch = "best" if len(self.valid_splits) > 0 else cur_epoch

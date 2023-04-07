@@ -212,7 +212,12 @@ class Blip2Lora(Blip2Base):
         Returns:
             captions (list): A list of strings of length batch_size * num_captions.
         """
-        return [0.5] * samples["image"].shape[0]  # TODO,临时返回
+        # bs = samples["image"].shape[0]
+        # fake_result = {
+        #     "predictions": torch.randn(bs, 256),
+        #     "targets": torch.randn(bs),
+        # }
+        # return fake_result # TODO,临时返回
         image = samples["image"]   # [batch_size, 3, 364, 364] # 获取输入数据中的图像
         caption = samples["text_input"]
         labels = samples["label"]
@@ -281,8 +286,13 @@ class Blip2Lora(Blip2Base):
         # True: 选择是否返回 norm 后的值,True 时 norm 会返回范数值,False 时仅进行范数计算但不返回值。
         norm = torch.norm(multimodal_embeds_first, 2, 1, True)
         multimodal_embeds_output = multimodal_embeds_first.div(norm)
+        logits = torch.mm(multimodal_embeds_output, self.head.kernel)
         # 返回向量就行了，对于评估来说
-        return multimodal_embeds_output
+        result = {
+            "predictions": logits,
+            "targets": labels,
+        }
+        return result
 
     @classmethod
     def from_config(cls, cfg):
