@@ -497,7 +497,7 @@ class Inference:
                 # 不要build关键字
                 product = product["build"]
             assert cls["instance_id"] == product["md5"],f"模型在推理数据时造成了混乱，请检查数据: {product}"
-            cls_list = cls["vector"]
+            cls_list = cls["vector"].tolist()
             product["cls_vector"] = cls_list
             data.append(product)
         mongo_insert(data=data, database='label', collection=collection, clean_before_insert=clean_before_insert)

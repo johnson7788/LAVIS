@@ -33,16 +33,20 @@ class MultimodalRetrievalTask(BaseTask):
         category_logits = outputs["category_logits"] # 向量
         bigcatg_logits = outputs["bigcatg_logits"] # 向量
 
-        predictions = predictions.max(1)[1].cpu().numpy()
-        brand_predictions = brand_logits.max(1)[1].cpu().numpy()
-        category_predictions = category_logits.max(1)[1].cpu().numpy()
-        bigcatg_predictions = bigcatg_logits.max(1)[1].cpu().numpy()
+        predictions_logits = predictions.max(1)[1].cpu().numpy()
+        scores = predictions.cpu().numpy()
+        # brand_predictions = brand_logits.max(1)[1].cpu().numpy()
+        # category_predictions = category_logits.max(1)[1].cpu().numpy()
+        # bigcatg_predictions = bigcatg_logits.max(1)[1].cpu().numpy()
+        brand_logits = brand_logits.cpu().numpy()
+        category_logits = category_logits.cpu().numpy()
+        bigcatg_logits = bigcatg_logits.cpu().numpy()
         targets = targets.cpu().numpy()
         vectors = vectors.cpu().numpy()
 
         indices = samples[self.inst_id_key]
 
-        for pred, tgt, index, vector in zip(predictions, targets, indices, vectors):
+        for pred, score, tgt, index, vector, brand, category, bigcatg in zip(predictions_logits, scores, targets, indices, vectors,brand_logits,category_logits,bigcatg_logits):
             if isinstance(index, torch.Tensor):
                 index = index.item()
 
@@ -51,10 +55,11 @@ class MultimodalRetrievalTask(BaseTask):
                     self.inst_id_key: index,
                     "prediction": pred.item(),
                     "target": tgt.item(),
-                    "vector": vector.tolist(),
-                    "brand_prediction": brand_predictions.item(),
-                    "category_prediction": category_predictions.item(),
-                    "bigcatg_prediction": bigcatg_predictions.item(),
+                    "scores": score,
+                    "vector": vector,
+                    "brand_scores": brand,
+                    "category_scores": category,
+                    "bigcatg_scores": bigcatg,
                 }
             )
 

@@ -347,7 +347,7 @@ class RunnerBase:
 
         output_dir.mkdir(parents=True, exist_ok=True)
         result_dir.mkdir(parents=True, exist_ok=True)
-        if registry.get("result_dir") is None:
+        if registry.get_path("result_dir") is None:
             registry.register_path("result_dir", str(result_dir))
             registry.register_path("output_dir", str(output_dir))
 
