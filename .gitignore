@@ -154,3 +154,5 @@ debug*/
 *.gz
 
 cache/
+examples/lavis_predict.py
+examples/building_index.py
