@@ -634,14 +634,15 @@ class RunnerBase:
             raise RuntimeError("checkpoint url or path is invalid")
 
         state_dict = checkpoint["model"]
-        self.unwrap_dist_model(self.model).load_state_dict(state_dict)
+        # strict=False:允许加载部分参数
+        self.unwrap_dist_model(self.model).load_state_dict(state_dict, strict=False)
 
         self.optimizer.load_state_dict(checkpoint["optimizer"])
         if self.scaler and "scaler" in checkpoint:
             self.scaler.load_state_dict(checkpoint["scaler"])
 
         self.start_epoch = checkpoint["epoch"] + 1
-        logging.info("Resume checkpoint from {}".format(url_or_filename))
+        logging.info("加载了{} 继续开始训练, epoch是{}".format(url_or_filename, self.start_epoch))
 
     @main_process
     def log_stats(self, stats, split_name):
