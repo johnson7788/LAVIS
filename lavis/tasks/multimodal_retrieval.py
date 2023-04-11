@@ -66,8 +66,18 @@ class MultimodalRetrievalTask(BaseTask):
         return results
 
     def after_evaluation(self, val_result, split_name, epoch, **kwargs):
+        # val_result只保留prediction,target和instance_id
+        new_val_result = []
+        for res in val_result:
+            new_val_result.append(
+                {
+                    self.inst_id_key: res[self.inst_id_key],
+                    "prediction": res["prediction"],
+                    "target": res["target"],
+                }
+            )
         eval_result_file = self.save_result(
-            result=val_result,
+            result=new_val_result,
             result_dir=registry.get_path("result_dir"),
             filename="{}_epoch{}".format(split_name, epoch),
             remove_duplicate=self.inst_id_key,
