@@ -596,7 +596,7 @@ def search_and_cache(host,db,table=None,sql=None,flush_cache=False, flush_cache_
         cache_path = "./"
     hosts_info = {
         "129": {"host": "192.168.50.129", "port": 3306, "user": "test", "password": "123456"},
-        "online": {"host": "lavector-mysql.cqksigp8aiow.rds.cn-northwest-1.amazonaws.com.cn", "port": 3306, "user": "lavector", "password": "passw0rd"},
+        "online": {"host": "lavector-mysql.cqksigp8aiow.rds.cn-northwest-1.amazonaws.com.cn", "port": 3306, "user": "johnson", "password": "tN6YPQovc1"},
     }
     # 验证给的host是否在hosts_info中
     host_info = hosts_info.get(host)
@@ -702,7 +702,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     if not args.checkpoint:
-        checkpoint_path = f"lavis/output/checkpoint_{args.time_key}.pth"
+        checkpoint_path = f"save/trained_model/checkpoint_{args.time_key}.pth"
         assert os.path.exists(checkpoint_path), f"模型路径: {checkpoint_path} 不存在，请检查"
         args.checkpoint = checkpoint_path
     inference = Inference(time_key=args.time_key, checkpoint_path=args.checkpoint)
